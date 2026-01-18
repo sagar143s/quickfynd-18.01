@@ -362,8 +362,15 @@ export default function CheckoutPage() {
       }
       // Prepare payload but DON'T create order yet - wait for payment verification
       try {
+        // Build items from cart state to include variantOptions
+        const itemsFromStateCard = Object.entries(cartItems || {}).map(([id, value]) => {
+          const qty = typeof value === 'number' ? value : value?.quantity || 0;
+          const variantOptions = typeof value === 'object' ? value?.variantOptions : undefined;
+          return { id, quantity: qty, ...(variantOptions ? { variantOptions } : {}) };
+        }).filter(i => i.quantity > 0);
+
         let payload = {
-          items: cartArray.map(({ _id, quantity }) => ({ id: _id, quantity })),
+          items: itemsFromStateCard,
           paymentMethod: 'CARD',
           shippingFee: shipping,
           paymentStatus: 'pending',
@@ -433,8 +440,15 @@ export default function CheckoutPage() {
       
       if (user) {
         console.log('Building logged-in user payload...');
+        // Build items directly from cartItems to preserve variantOptions
+        const itemsFromState = Object.entries(cartItems || {}).map(([id, value]) => {
+          const qty = typeof value === 'number' ? value : value?.quantity || 0;
+          const variantOptions = typeof value === 'object' ? value?.variantOptions : undefined;
+          return { id, quantity: qty, ...(variantOptions ? { variantOptions } : {}) };
+        }).filter(i => i.quantity > 0);
+
         payload = {
-          items: cartArray.map(({ _id, quantity }) => ({ id: _id, quantity })),
+          items: itemsFromState,
           paymentMethod: form.payment === 'cod' ? 'COD' : form.payment.toUpperCase(),
           shippingFee: shipping,
         };

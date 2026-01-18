@@ -128,10 +128,34 @@ export async function POST(request) {
                 return NextResponse.json({ error: 'Invalid productId format', id: item.id }, { status: 400 });
             }
             if (!product) return NextResponse.json({ error: 'Product not found', id: item.id }, { status: 400 });
+
+            // Stock validation - enforce available stock and max per order (20)
+            const requestedQty = Math.min(Number(item.quantity) || 0, 20);
+            if (requestedQty <= 0) {
+                return NextResponse.json({ error: 'Quantity must be at least 1', id: item.id }, { status: 400 });
+            }
+            // If variantOptions provided, validate against matching variant stock; else product stockQuantity
+            let availableQty = typeof product.stockQuantity === 'number' ? product.stockQuantity : 0;
+            if (item.variantOptions && Array.isArray(product.variants) && product.variants.length > 0) {
+                const { color, size, bundleQty } = item.variantOptions || {};
+                const match = product.variants.find(v => {
+                    const cOk = v.options?.color ? v.options.color === color : !color;
+                    const sOk = v.options?.size ? v.options.size === size : !size;
+                    const bOk = v.options?.bundleQty ? Number(v.options.bundleQty) === Number(bundleQty) : !bundleQty;
+                    return cOk && sOk && bOk;
+                });
+                if (!match) {
+                    return NextResponse.json({ error: 'Selected variant not found', id: item.id, variantOptions: item.variantOptions }, { status: 400 });
+                }
+                availableQty = typeof match.stock === 'number' ? match.stock : availableQty;
+            }
+            if (availableQty < requestedQty) {
+                return NextResponse.json({ error: 'Insufficient stock', id: item.id, availableQty, requestedQty }, { status: 400 });
+            }
             const storeId = product.storeId;
             if (!ordersByStore.has(storeId)) ordersByStore.set(storeId, []);
-            ordersByStore.get(storeId).push({ ...item, price: product.price });
-            grandSubtotal += Number(product.price) * Number(item.quantity);
+            ordersByStore.get(storeId).push({ ...item, quantity: requestedQty, price: product.price });
+            grandSubtotal += Number(product.price) * Number(requestedQty);
         }
 
         // Shipping: use from payload, fallback to 0
@@ -323,6 +347,36 @@ export async function POST(request) {
                 });
             orderIds.push(order._id.toString());
 
+            // Decrement stock for items in this store order
+            for (const it of sellerItems) {
+                const prod = await Product.findById(it.id);
+                if (!prod) continue;
+                const qty = Number(it.quantity) || 0;
+                if (qty <= 0) continue;
+
+                // Product-level stock
+                if (typeof prod.stockQuantity === 'number') {
+                    prod.stockQuantity = Math.max(0, prod.stockQuantity - qty);
+                    prod.inStock = prod.stockQuantity > 0;
+                }
+
+                // Variant-level stock if provided
+                if (it.variantOptions && Array.isArray(prod.variants) && prod.variants.length > 0) {
+                    const { color, size, bundleQty } = it.variantOptions || {};
+                    const idx = prod.variants.findIndex(v => {
+                        const cOk = v.options?.color ? v.options.color === color : !color;
+                        const sOk = v.options?.size ? v.options.size === size : !size;
+                        const bOk = v.options?.bundleQty ? Number(v.options.bundleQty) === Number(bundleQty) : !bundleQty;
+                        return cOk && sOk && bOk;
+                    });
+                    if (idx >= 0) {
+                        const current = typeof prod.variants[idx].stock === 'number' ? prod.variants[idx].stock : 0;
+                        prod.variants[idx].stock = Math.max(0, current - qty);
+                    }
+                }
+                await prod.save();
+            }
+
             // Email notification using sendOrderConfirmationEmail
             try {
                 let customerEmail = '';
@@ -365,6 +419,38 @@ export async function POST(request) {
             } catch (emailError) {
                 console.error('Error sending order confirmation email:', emailError);
                 // Don't fail the order if email fails
+            }
+            // Decrement stock for each item in this store order (atomic)
+            for (const item of sellerItems) {
+                try {
+                    const requestedQty = Number(item.quantity) || 0;
+                    if (requestedQty > 0) {
+                        // Decrement product-level stock
+                        const updated = await Product.findByIdAndUpdate(
+                            item.id,
+                            { $inc: { stockQuantity: -requestedQty } },
+                            { new: true }
+                        );
+                        if (updated) {
+                            // Update inStock flag based on remaining quantity
+                            const stillInStock = (typeof updated.stockQuantity === 'number' ? updated.stockQuantity : 0) > 0;
+                            if (updated.inStock !== stillInStock) {
+                                await Product.findByIdAndUpdate(item.id, { $set: { inStock: stillInStock } });
+                            }
+                        }
+
+                        // Optional: decrement variant stock when options provided
+                        if (item.variantOptions && item.variantOptions.color && item.variantOptions.size) {
+                            await Product.updateOne(
+                                { _id: item.id, 'variants.options.color': item.variantOptions.color, 'variants.options.size': item.variantOptions.size },
+                                { $inc: { 'variants.$.stock': -requestedQty } }
+                            );
+                        }
+                    }
+                } catch (stockErr) {
+                    console.error('Stock decrement error for product', item.id, stockErr);
+                    // Do not fail the order if stock decrement fails, but log it
+                }
             }
         }
 

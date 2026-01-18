@@ -118,6 +118,10 @@ const ProductDetails = ({ product, reviews = [] }) => {
 
   const effPrice = selectedVariant?.price ?? product.price;
   const effMrp = selectedVariant?.mrp ?? product.mrp;
+  const availableStock = (typeof selectedVariant?.stock === 'number')
+    ? selectedVariant.stock
+    : (typeof product.stockQuantity === 'number' ? product.stockQuantity : 0);
+  const maxOrderQty = Math.min(20, Math.max(0, availableStock));
   const discountPercent = effMrp > effPrice
     ? Math.round(((effMrp - effPrice) / effMrp) * 100)
     : 0;
@@ -147,6 +151,22 @@ const ProductDetails = ({ product, reviews = [] }) => {
     }
     return variantColors.some(color => isVariantInStock(color, size));
   };
+
+  useEffect(() => {
+    const availableVariants = variants.filter(v => (v?.stock ?? 0) > 0);
+    if (availableVariants.length === 1) {
+      const v = availableVariants[0];
+      if (v.options?.color) setSelectedColor(v.options.color);
+      if (v.options?.size) setSelectedSize(v.options.size);
+      return;
+    }
+
+    const availableColors = variantColors.filter(c => isColorAvailable(c));
+    if (availableColors.length === 1) setSelectedColor(availableColors[0]);
+
+    const availableSizes = variantSizes.filter(s => isSizeAvailable(s));
+    if (availableSizes.length === 1) setSelectedSize(availableSizes[0]);
+  }, []);
 
   const shareMenuRef = useRef(null);
 
@@ -297,8 +317,17 @@ const ProductDetails = ({ product, reviews = [] }) => {
 
   const handleOrderNow = () => {
     // Add to cart for both guests and signed-in users
-    for (let i = 0; i < quantity; i++) {
-      dispatch(addToCart({ productId: product._id, price: effPrice }));
+    const qty = Math.min(quantity, maxOrderQty || 0);
+    for (let i = 0; i < qty; i++) {
+      dispatch(addToCart({ 
+        productId: product._id, 
+        price: effPrice,
+        variantOptions: {
+          color: selectedColor || null,
+          size: selectedSize || null,
+          bundleQty: selectedBundleQty || null
+        }
+      }));
     }
     // Go directly to cart (guests can checkout there)
     router.push('/cart');
@@ -306,8 +335,17 @@ const ProductDetails = ({ product, reviews = [] }) => {
 
   const handleAddToCart = async () => {
     // Add to cart for both guests and signed-in users
-    for (let i = 0; i < quantity; i++) {
-      dispatch(addToCart({ productId: product._id, price: effPrice }));
+    const qty = Math.min(quantity, maxOrderQty || 0);
+    for (let i = 0; i < qty; i++) {
+      dispatch(addToCart({ 
+        productId: product._id, 
+        price: effPrice,
+        variantOptions: {
+          color: selectedColor || null,
+          size: selectedSize || null,
+          bundleQty: selectedBundleQty || null
+        }
+      }));
     }
     
     // Upload to server if signed in
@@ -864,7 +902,8 @@ const ProductDetails = ({ product, reviews = [] }) => {
               <div className="flex items-center gap-2">
                 <button
                   onClick={() => setQuantity(Math.max(1, quantity - 1))}
-                  className="w-9 h-9 flex items-center justify-center border border-gray-300 rounded hover:bg-gray-100 transition"
+                  disabled={quantity <= 1}
+                  className={`w-9 h-9 flex items-center justify-center border rounded transition ${quantity <= 1 ? 'border-gray-200 text-gray-300 cursor-not-allowed' : 'border-gray-300 hover:bg-gray-100 text-gray-700'}`}
                 >
                   <MinusIcon size={16} className="text-gray-700" />
                 </button>
@@ -872,8 +911,13 @@ const ProductDetails = ({ product, reviews = [] }) => {
                   {quantity}
                 </div>
                 <button
-                  onClick={() => setQuantity(quantity + 1)}
-                  className="w-9 h-9 flex items-center justify-center border border-gray-300 rounded hover:bg-gray-100 transition"
+                  onClick={() => setQuantity(Math.min(quantity + 1, maxOrderQty || 1))}
+                  disabled={quantity >= (maxOrderQty || 1) || !isVariantInStock(selectedColor, selectedSize)}
+                  className={`w-9 h-9 flex items-center justify-center border rounded transition ${
+                    quantity >= (maxOrderQty || 1) || !isVariantInStock(selectedColor, selectedSize)
+                      ? 'border-gray-200 text-gray-300 cursor-not-allowed'
+                      : 'border-gray-300 hover:bg-gray-100 text-gray-700'
+                  }`}
                 >
                   <PlusIcon size={16} className="text-gray-700" />
                 </button>
