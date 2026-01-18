@@ -491,10 +491,18 @@ export default function ProductForm({ product = null, onClose, onSubmitSuccess }
             }
 
             const token = await getToken()
-                        console.log('Submitting product with token:', token);
+            console.log('Submitting product with token:', token);
             const apiCall = product
-                ? axios.put(`/api/store/product`, formData, { headers: { Authorization: `Bearer ${token}` } })
-                : axios.post('/api/store/product', formData, { headers: { Authorization: `Bearer ${token}` } })
+                ? axios.put(`/api/store/product`, formData, { 
+                    headers: { 
+                        'Authorization': `Bearer ${token}`
+                    } 
+                })
+                : axios.post('/api/store/product', formData, { 
+                    headers: { 
+                        'Authorization': `Bearer ${token}`
+                    } 
+                })
 
             const { data } = await apiCall
             toast.success(data.message)
@@ -794,7 +802,7 @@ export default function ProductForm({ product = null, onClose, onSubmitSuccess }
                 {/* Descriptions */}
                 <div>
                     <label className="block text-sm font-medium mb-1">Short Description</label>
-                    <input name="shortDescription" value={productInfo.shortDescription} onChange={onChangeHandler} className="w-full border rounded px-3 py-2" placeholder="One-liner overview" />
+                    <input name="shortDescription" value={productInfo.shortDescription || ''} onChange={onChangeHandler} className="w-full border rounded px-3 py-2" placeholder="One-liner overview" />
                 </div>
 
                 {/* Product Badges */}

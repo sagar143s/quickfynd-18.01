@@ -122,6 +122,32 @@ const ProductDetails = ({ product, reviews = [] }) => {
     ? Math.round(((effMrp - effPrice) / effMrp) * 100)
     : 0;
 
+  // Helper to check if a color+size combination has stock
+  const isVariantInStock = (color, size) => {
+    const variant = variants.find(v => {
+      const cOk = v.options?.color ? v.options.color === color : !color;
+      const sOk = v.options?.size ? v.options.size === size : !size;
+      return cOk && sOk;
+    });
+    return variant ? (variant.stock > 0) : true;
+  };
+
+  // Helper to check if color has any size in stock
+  const isColorAvailable = (color) => {
+    if (variantSizes.length === 0) {
+      return isVariantInStock(color, null);
+    }
+    return variantSizes.some(size => isVariantInStock(color, size));
+  };
+
+  // Helper to check if size has any color in stock
+  const isSizeAvailable = (size) => {
+    if (variantColors.length === 0) {
+      return isVariantInStock(null, size);
+    }
+    return variantColors.some(color => isVariantInStock(color, size));
+  };
+
   const shareMenuRef = useRef(null);
 
   const aspectRatioClass = (() => {
@@ -376,7 +402,9 @@ const ProductDetails = ({ product, reviews = [] }) => {
           <div className="flex items-center gap-2 text-sm">
             <a href="/" className="text-gray-600 hover:text-gray-900">Home</a>
             <span className="text-gray-400">&gt;</span>
-            <a href={`/categories/${product.category}`} className="text-gray-600 hover:text-gray-900">{product.category}</a>
+            <a href="/shop" className="text-gray-600 hover:text-gray-900">Products</a>
+            <span className="text-gray-400">&gt;</span>
+            <span className="text-gray-900 font-medium truncate">{product.name}</span>
           </div>
         </div>
       </div>
@@ -638,6 +666,14 @@ const ProductDetails = ({ product, reviews = [] }) => {
 
             {/* Price Section */}
             <div className="space-y-2">
+              {!isVariantInStock(selectedColor, selectedSize) && (
+                <div className="inline-flex items-center gap-2 px-4 py-2 bg-red-50 text-red-700 text-sm font-medium rounded-lg border border-red-200">
+                  <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                  </svg>
+                  Out of Stock
+                </div>
+              )}
               <div className="flex items-baseline gap-3 flex-wrap">
                 <span className="text-red-600 text-4xl font-bold">
                   {currency}  {effPrice.toLocaleString()}
@@ -670,19 +706,29 @@ const ProductDetails = ({ product, reviews = [] }) => {
               <div className="space-y-2 pt-2">
                 <label className="text-sm font-semibold text-gray-900">Color</label>
                 <div className="flex flex-wrap gap-2">
-                  {variantColors.map((color) => (
-                    <button
-                      key={color}
-                      onClick={() => setSelectedColor(color)}
-                      className={`px-4 py-2 rounded-lg border-2 transition-all text-sm font-medium ${
-                        selectedColor === color
-                          ? 'border-orange-500 bg-orange-50 text-orange-700'
-                          : 'border-gray-300 bg-white text-gray-700 hover:border-gray-400'
-                      }`}
-                    >
-                      {color}
-                    </button>
-                  ))}
+                  {variantColors.map((color) => {
+                    const inStock = isColorAvailable(color);
+                    return (
+                      <button
+                        key={color}
+                        onClick={() => setSelectedColor(color)}
+                        className={`px-4 py-2 rounded-lg border-2 transition-all text-sm font-medium relative ${
+                          selectedColor === color
+                            ? 'border-orange-500 bg-orange-50 text-orange-700'
+                            : inStock
+                            ? 'border-gray-300 bg-white text-gray-700 hover:border-gray-400'
+                            : 'border-gray-300 bg-white text-gray-700 hover:border-gray-400 opacity-40'
+                        }`}
+                      >
+                        {color}
+                        {!inStock && (
+                          <span className="absolute -top-1 -right-1 text-[8px] bg-red-500 text-white px-1 py-0.5 rounded opacity-100">
+                            OUT
+                          </span>
+                        )}
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
             )}
@@ -692,19 +738,29 @@ const ProductDetails = ({ product, reviews = [] }) => {
               <div className="space-y-2 pt-2">
                 <label className="text-sm font-semibold text-gray-900">Size</label>
                 <div className="flex flex-wrap gap-2">
-                  {variantSizes.map((size) => (
-                    <button
-                      key={size}
-                      onClick={() => setSelectedSize(size)}
-                      className={`px-4 py-2 rounded-lg border-2 transition-all text-sm font-medium ${
-                        selectedSize === size
-                          ? 'border-orange-500 bg-orange-50 text-orange-700'
-                          : 'border-gray-300 bg-white text-gray-700 hover:border-gray-400'
-                      }`}
-                    >
-                      {size}
-                    </button>
-                  ))}
+                  {variantSizes.map((size) => {
+                    const inStock = isSizeAvailable(size);
+                    return (
+                      <button
+                        key={size}
+                        onClick={() => setSelectedSize(size)}
+                        className={`px-4 py-2 rounded-lg border-2 transition-all text-sm font-medium relative ${
+                          selectedSize === size
+                            ? 'border-orange-500 bg-orange-50 text-orange-700'
+                            : inStock
+                            ? 'border-gray-300 bg-white text-gray-700 hover:border-gray-400'
+                            : 'border-gray-300 bg-white text-gray-700 hover:border-gray-400 opacity-40'
+                        }`}
+                      >
+                        {size}
+                        {!inStock && (
+                          <span className="absolute -top-1 -right-1 text-[8px] bg-red-500 text-white px-1 py-0.5 rounded opacity-100">
+                            OUT
+                          </span>
+                        )}
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
             )}
@@ -828,34 +884,43 @@ const ProductDetails = ({ product, reviews = [] }) => {
             <div className="hidden md:flex gap-2 pt-3">
               <button 
                 onClick={handleOrderNow}
-                className="flex-1 bg-red-500 text-white py-3.5 px-6 rounded-lg font-semibold text-base hover:bg-red-600 transition flex items-center justify-center gap-2"
+                disabled={!isVariantInStock(selectedColor, selectedSize)}
+                className={`flex-1 py-3.5 px-6 rounded-lg font-semibold text-base transition flex items-center justify-center gap-2 ${
+                  !isVariantInStock(selectedColor, selectedSize)
+                    ? 'bg-gray-400 text-white cursor-not-allowed opacity-70'
+                    : 'bg-red-500 text-white hover:bg-red-600'
+                }`}
               >
-                Order Now
-                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
-                </svg>
+                {!isVariantInStock(selectedColor, selectedSize) ? 'Out of Stock' : 'Order Now'}
+                {isVariantInStock(selectedColor, selectedSize) && (
+                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
+                  </svg>
+                )}
               </button>
 
-              {cartItems[product._id] ? (
-                <button
-                  onClick={() => router.push('/cart')}
-                  className="flex-1 bg-green-600 text-white py-3.5 px-6 rounded-lg font-semibold text-base hover:bg-green-700 transition flex items-center justify-center gap-2"
-                >
-                  Go to Cart
-                  <ShoppingCartIcon size={20} />
-                </button>
-              ) : (
-                <button 
-                  onClick={handleAddToCart}
-                  className="relative w-12 h-12 bg-green-500 hover:bg-green-600 text-white rounded-lg transition flex items-center justify-center flex-shrink-0"
-                >
-                  <ShoppingCartIcon size={20} />
-                  {cartCount > 0 && (
-                    <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs font-bold rounded-full min-w-[20px] h-5 flex items-center justify-center px-1.5">
-                      {cartCount > 99 ? '99+' : cartCount}
-                    </span>
-                  )}
-                </button>
+              {isVariantInStock(selectedColor, selectedSize) && (
+                cartItems[product._id] ? (
+                  <button
+                    onClick={() => router.push('/cart')}
+                    className="flex-1 bg-green-600 text-white py-3.5 px-6 rounded-lg font-semibold text-base hover:bg-green-700 transition flex items-center justify-center gap-2"
+                  >
+                    Go to Cart
+                    <ShoppingCartIcon size={20} />
+                  </button>
+                ) : (
+                  <button 
+                    onClick={handleAddToCart}
+                    className="relative w-12 h-12 rounded-lg transition flex items-center justify-center flex-shrink-0 bg-green-500 hover:bg-green-600 text-white"
+                  >
+                    <ShoppingCartIcon size={20} />
+                    {cartCount > 0 && (
+                      <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs font-bold rounded-full min-w-[20px] h-5 flex items-center justify-center px-1.5">
+                        {cartCount > 99 ? '99+' : cartCount}
+                      </span>
+                    )}
+                  </button>
+                )
               )}
             </div>
 
@@ -1086,6 +1151,7 @@ const ProductDetails = ({ product, reviews = [] }) => {
         effPrice={effPrice}
         currency={currency}
         cartCount={cartCount}
+        isOutOfStock={!isVariantInStock(selectedColor, selectedSize)}
       />
 
       <style jsx>{`

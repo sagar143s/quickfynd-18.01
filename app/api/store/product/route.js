@@ -39,22 +39,35 @@ export async function POST(request) {
         let userId = null;
         if (authHeader && authHeader.startsWith('Bearer ')) {
             const idToken = authHeader.split('Bearer ')[1];
-            const { getAuth } = await import('firebase-admin/auth');
-            const { initializeApp, applicationDefault, getApps } = await import('firebase-admin/app');
-            if (getApps().length === 0) {
-                initializeApp({ credential: applicationDefault() });
-            }
             try {
-                const decodedToken = await getAuth().verifyIdToken(idToken);
+                const { getAuth } = await import('@/lib/firebase-admin');
+                const adminAuth = getAuth();
+                const decodedToken = await adminAuth.verifyIdToken(idToken);
                 userId = decodedToken.uid;
             } catch (e) {
-                // Not signed in, userId remains null
+                console.error('Auth verification failed (POST /api/store/product):', e.message);
+                // Don't fail on auth error - just log it and continue without userId
+                userId = null;
             }
         }
         const storeId = await authSeller(userId);
         if (!storeId) return NextResponse.json({ error: "Not authorized" }, { status: 401 });
 
-        const formData = await request.formData();
+        // Try FormData first (most common case for product creation with images)
+        let formData;
+        try {
+            formData = await request.formData();
+        } catch (err) {
+            // If FormData parsing fails, return specific error
+            console.error('FormData parsing failed:', err.message, err.stack);
+            return NextResponse.json({ 
+                error: "Failed to parse FormData", 
+                detail: err.message,
+                hint: "Check if images are too large or request body exceeds limits"
+            }, { status: 400 });
+        }
+
+        // FormData successfully parsed - proceed with multipart/form-data path
         const name = formData.get("name");
         const description = formData.get("description");
         const category = formData.get("category"); // Kept for backward compatibility
@@ -215,7 +228,7 @@ export async function POST(request) {
             stockQuantity,
             storeId,
         });
-        
+
         console.log('DEBUG: Product created, checking saved data:');
         console.log('  - product.category:', product.category);
         console.log('  - product.categories:', product.categories);
@@ -232,12 +245,20 @@ export async function POST(request) {
 
         return NextResponse.json({ message: "Product added successfully", product });
     } catch (error) {
-        console.error(error);
-        return NextResponse.json({ error: error.code || error.message }, { status: 400 });
+        console.error('========== ERROR IN POST /api/store/product ==========');
+        console.error('Error name:', error.name);
+        console.error('Error message:', error.message);
+        console.error('Error stack:', error.stack);
+        console.error('Error code:', error.code);
+        console.error('=====================================================');
+        return NextResponse.json({ 
+            error: error.message || "Internal server error",
+            errorCode: error.code,
+            errorName: error.name
+        }, { status: 500 });
     }
 }
 
-// GET: Get all products of the seller
 export async function GET(request) {
     try {
         await connectDB();
@@ -261,20 +282,46 @@ export async function PUT(request) {
         let userId = null;
         if (authHeader && authHeader.startsWith('Bearer ')) {
             const idToken = authHeader.split('Bearer ')[1];
-            const { getAuth } = await import('firebase-admin/auth');
-            const { initializeApp, applicationDefault, getApps } = await import('firebase-admin/app');
-            if (getApps().length === 0) {
-                initializeApp({ credential: applicationDefault() });
-            }
             try {
-                const decodedToken = await getAuth().verifyIdToken(idToken);
+                const { getAuth } = await import('@/lib/firebase-admin');
+                const adminAuth = getAuth();
+                const decodedToken = await adminAuth.verifyIdToken(idToken);
                 userId = decodedToken.uid;
             } catch (e) {
-                // Not signed in, userId remains null
+                console.error('Auth verification failed (PUT /api/store/product):', e.message);
+                return NextResponse.json({ error: 'Auth verification failed', detail: e.message }, { status: 401 });
             }
         }
         const storeId = await authSeller(userId);
         if (!storeId) return NextResponse.json({ error: "Not authorized" }, { status: 401 });
+
+        const contentType = request.headers.get('content-type')?.toLowerCase() || '';
+        if (contentType.includes('application/json')) {
+            const body = await request.json();
+            const { productId, images } = body || {};
+
+            if (!productId || typeof productId !== 'string' || !productId.match(/^[a-fA-F0-9]{24}$/)) {
+                return NextResponse.json({ error: "Product ID required or invalid format" }, { status: 400 });
+            }
+
+            const product = await Product.findById(productId).lean();
+            if (!product || product.storeId !== storeId) {
+                return NextResponse.json({ error: "Not authorized" }, { status: 401 });
+            }
+
+            let imagesUrl = product.images;
+            if (Array.isArray(images)) {
+                imagesUrl = images.filter(Boolean);
+            }
+
+            const updated = await Product.findByIdAndUpdate(
+                productId,
+                { images: imagesUrl },
+                { new: true }
+            ).lean();
+
+            return NextResponse.json({ message: "Product updated successfully", product: updated });
+        }
 
         const formData = await request.formData();
         

@@ -89,7 +89,7 @@ const ProductCard = ({ product }) => {
       onMouseLeave={hasSecondary ? () => setHovered(false) : null}
     >
       {/* Image Container */}
-      <div className="relative w-full h-32 sm:h-56 overflow-hidden bg-gray-50 aspect-square sm:aspect-auto">
+      <div className="relative w-full h-36 sm:h-64 overflow-hidden bg-gray-50 aspect-square sm:aspect-auto">
         {product.fastDelivery && (
           <span className="absolute top-2 left-2 bg-orange-500 text-white text-[10px] sm:text-[8px] lg:text-[12px] font-bold px-1.5 py-1 sm:px-1 sm:py-0.5 lg:px-2 lg:py-1.5 rounded-full shadow-md z-10">
             Fast Delivery
@@ -217,7 +217,7 @@ const BestSelling = () => {
         {isLoading
           ? Array(displayQuantity).fill(0).map((_, idx) => (
               <div key={idx} className="bg-white rounded-xl shadow-sm animate-pulse">
-                <div className="w-full h-32 sm:h-56 bg-gray-200 rounded-t-xl" />
+                <div className="w-full h-36 sm:h-64 bg-gray-200 rounded-t-xl" />
                 <div className="p-2">
                   <div className="h-4 bg-gray-200 rounded mb-2" />
                   <div className="flex items-center gap-1 mb-3">

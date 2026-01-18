@@ -31,7 +31,12 @@ const nextConfig = {
         deviceSizes: [320, 420, 640, 768, 1024, 1280, 1536, 1920],
         imageSizes: [16, 32, 48, 64, 96, 128, 256, 384]
     },
-    // experimental: {},
+    // Increase body size limit for product uploads with multiple images (up to 4MB per image)
+    experimental: {
+        serverActions: {
+            bodySizeLimit: '50mb'
+        }
+    },
     // Skip static generation for authenticated routes
     async headers() {
         return [

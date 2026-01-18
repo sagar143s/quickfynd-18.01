@@ -1,6 +1,6 @@
 "use client"
 import { usePathname } from "next/navigation"
-import { HomeIcon, LayoutListIcon, SquarePenIcon, SquarePlusIcon, StarIcon, FolderIcon, TicketIcon, TruckIcon, RefreshCw, User as UserIcon, Users as UsersIcon, MessageSquare } from "lucide-react"
+import { HomeIcon, LayoutListIcon, SquarePenIcon, SquarePlusIcon, StarIcon, FolderIcon, TicketIcon, TruckIcon, RefreshCw, User as UserIcon, Users as UsersIcon, MessageSquare, Sparkles } from "lucide-react"
 import Image from "next/image"
 import Link from "next/link"
 import { useState, useEffect } from "react";
@@ -26,6 +26,8 @@ const StoreSidebar = ({storeInfo}) => {
         { name: 'Contact Us Messages', href: '/store#contact-messages', icon: StarIcon },
     ]
 
+    const featuredProductsLink = { name: 'Featured Products', href: '/store/featured-products', icon: Sparkles }
+
     return (
         <div className="inline-flex h-full flex-col justify-between border-r border-slate-200 sm:min-w-60">
             <div>
@@ -49,6 +51,16 @@ const StoreSidebar = ({storeInfo}) => {
                             </Link>
                         ))
                     }
+                    
+                    {/* Divider Line */}
+                    <div className="my-4 border-t border-slate-300 mx-2.5"></div>
+                    
+                    {/* Featured Products Link - Below Contact Messages */}
+                    <Link href={featuredProductsLink.href} className={`relative flex items-center gap-3 text-slate-500 hover:bg-slate-50 p-2.5 transition ${pathname === featuredProductsLink.href && 'bg-slate-100 sm:text-slate-600'}`}>
+                        <featuredProductsLink.icon size={18} className="sm:ml-5" />
+                        <p className="max-sm:hidden">{featuredProductsLink.name}</p>
+                        {pathname === featuredProductsLink.href && <span className="absolute bg-green-500 right-0 top-1.5 bottom-1.5 w-1 sm:w-1.5 rounded-l"></span>}
+                    </Link>
                 </div>
             </div>
             <div className="mb-6 flex flex-col items-center">

@@ -11,6 +11,7 @@ const StoreSchema = new mongoose.Schema({
   logo: String,
   isActive: { type: Boolean, default: false },
   status: { type: String, default: "pending", enum: ["pending", "approved", "rejected"] },
+  featuredProductIds: { type: [String], default: [] }, // Array of featured product IDs
 }, { timestamps: true });
 
 // Create index on username for faster lookups
