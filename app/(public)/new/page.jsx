@@ -29,8 +29,11 @@ export default function NewProductsPage() {
                 </div>
             ) : (
                 <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-                    {newProducts.map((product) => (
-                        <ProductCard key={product.id} product={product} />
+                    {newProducts.map((product, idx) => (
+                        <ProductCard
+                            key={product._id || product.id || product.slug || idx}
+                            product={product}
+                        />
                     ))}
                 </div>
             )}
