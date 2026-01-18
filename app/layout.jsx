@@ -57,8 +57,8 @@ export default function RootLayout({ children }) {
             })(window,document,'script','dataLayer','GTM-5QLZ2255');
           `}
         </Script>
-        {/* Tawk.to Chat Widget */}
-        <Script id="tawk-to" strategy="lazyOnload">
+        {/* Tawk.to Chat Widget - DISABLED */}
+        {/* <Script id="tawk-to" strategy="lazyOnload">
           {`
             var Tawk_API=Tawk_API||{}, Tawk_LoadStart=new Date();
             (function(){
@@ -70,7 +70,7 @@ export default function RootLayout({ children }) {
             s0.parentNode.insertBefore(s1,s0);
             })();
           `}
-        </Script>
+        </Script> */}
       </head>
       <body className={`${outfit.className} antialiased`} suppressHydrationWarning>
         <MetaPixel />

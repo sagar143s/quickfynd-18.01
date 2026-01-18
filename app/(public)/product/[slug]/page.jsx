@@ -95,8 +95,8 @@ export default function ProductBySlug() {
     }, [product]);
 
     return (
-        <div className="lg:mx-6">
-            <div className="max-w-7xl mx-auto pb-24 lg:pb-0">
+        <div className="w-full">
+            <div className="max-w-screen-2xl mx-auto px-4 sm:px-6 pb-24 lg:pb-0">
                 {/* Product Details */}
                 {loading ? (
                     <div className="text-center py-16 text-gray-400">Loading product…</div>
